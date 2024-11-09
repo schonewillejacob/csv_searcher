@@ -5,6 +5,7 @@ Assignment 1
 
 ## Members
 Jacob Schonewille, 300135438   
+Harmanpreet., 300199961
 
 ## goals    
 App designed to aid the exploration of .csv files   
