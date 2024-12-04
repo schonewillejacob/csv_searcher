@@ -10,13 +10,11 @@
 """
 
 import sys
-
 from PyQt6.QtCore import QSize, Qt
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QPushButton, QLabel, 
-    QLineEdit, QHBoxLayout, QVBoxLayout, QWidget, QLayout
+    QLineEdit, QHBoxLayout, QVBoxLayout, QWidget, QLayout, QTableWidget, QTableWidgetItem
 )
-
 
 
 # Define main window properties and behaviour. 🔎︎
@@ -31,25 +29,40 @@ class SearchWindow(QMainWindow):
     MIN_DIMENSION_Y = 450
 
     # CONSTRUCTOR ############################################################
-    def __init__(self):
-        # Run Qt setup code.
+    def __init__(self, headers, rows):
+        """
+        Initialize the SearchWindow with headers and rows from the CSV file.
+        """
         super().__init__()
         
         # Main window attributes.
-        self.setWindowTitle(" ")
+        self.setWindowTitle("Search Data")
         self.setMinimumSize(QSize(
             SearchWindow.MIN_DIMENSION_X, 
             SearchWindow.MIN_DIMENSION_Y
             )
         )
+        
         # Setup widgets.
         _container = QWidget()
-        _searchbar_layout = QHBoxLayout()
-        
-        _container.setLayout(_searchbar_layout)
+        _layout = QVBoxLayout()
+
+        # Create a table to display CSV data
+        self.table = QTableWidget()
+        self.table.setRowCount(len(rows))
+        self.table.setColumnCount(len(headers))
+        self.table.setHorizontalHeaderLabels(headers)
+
+        # Populate the table with data
+        for row_idx, row in enumerate(rows):
+            for col_idx, cell in enumerate(row):
+                self.table.setItem(row_idx, col_idx, QTableWidgetItem(str(cell)))
+
+        _layout.addWidget(self.table)
+        _container.setLayout(_layout)
         self.setCentralWidget(_container)
-    
 
     # SLOTS ##################################################################
     def on_import_prompt_explorer(self):
         print(f"exporting")
+
