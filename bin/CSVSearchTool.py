@@ -127,9 +127,10 @@ class UnifiedSearchApp(QtWidgets.QWidget):
             QtWidgets.QMessageBox.warning(self, "Warning", "Please enter a search term.")
             return
 
+        # Filter results based on exact matches across all columns
         results = [
             row for row in self.data[1:]
-            if any(search_query in str(cell).lower() for cell in row)
+            if any(str(cell).strip().lower() == search_query for cell in row)
         ]
 
         self.display_results(results)
@@ -153,8 +154,8 @@ class UnifiedSearchApp(QtWidgets.QWidget):
                 column_index = self.headers.index(header)
                 cell_value = str(row[column_index]).strip().lower()
 
-                # Check for exact match
-                if term and term != cell_value:
+                # Check for exact match and avoid substring matches
+                if term and cell_value != term:
                     match = False
                     break
             if match:
