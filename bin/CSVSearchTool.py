@@ -7,6 +7,7 @@ class UnifiedSearchApp(QtWidgets.QWidget):
         super().__init__()
         self.headers = []  # To store column headers dynamically
         self.data = []  # To store CSV data
+        self.filtered_data = []  # To store filtered data for export
         self.search_fields = {}  # To store column-specific dropdown menus dynamically
         self.initUI()
 
@@ -51,6 +52,11 @@ class UnifiedSearchApp(QtWidgets.QWidget):
         specific_search_button = QtWidgets.QPushButton("Search by Column", self)
         specific_search_button.clicked.connect(self.perform_column_search)
         self.layout.addWidget(specific_search_button)
+
+        # Export filtered data button
+        export_button = QtWidgets.QPushButton("Export Filtered Data", self)
+        export_button.clicked.connect(self.export_filtered_data)
+        self.layout.addWidget(export_button)
 
         # Table for displaying results
         self.table = QtWidgets.QTableWidget()
@@ -97,6 +103,8 @@ class UnifiedSearchApp(QtWidgets.QWidget):
                         row_num, col_num, QtWidgets.QTableWidgetItem(cell_data)
                     )
 
+            # Reset filtered data
+            self.filtered_data = self.data[1:]
             print("CSV Data Loaded Successfully!")
 
         except Exception as e:
@@ -135,6 +143,7 @@ class UnifiedSearchApp(QtWidgets.QWidget):
             if any(str(cell).strip().lower() == search_query for cell in row)  # Ensure exact match
         ]
 
+        self.filtered_data = results  # Update filtered data
         self.display_results(results)
 
     def perform_column_search(self):
@@ -164,6 +173,7 @@ class UnifiedSearchApp(QtWidgets.QWidget):
             if match:
                 results.append(row)
 
+        self.filtered_data = results  # Update filtered data
         self.display_results(results)
 
     def display_results(self, results):
@@ -174,6 +184,27 @@ class UnifiedSearchApp(QtWidgets.QWidget):
                 self.table.setItem(row_num, col_num, QtWidgets.QTableWidgetItem(cell_data))
 
         print(f"Number of results found: {len(results)}")
+
+    def export_filtered_data(self):
+        """Exports the filtered data to a new CSV file."""
+        if not self.filtered_data:
+            QtWidgets.QMessageBox.warning(self, "Warning", "No filtered data to export.")
+            return
+
+        options = QtWidgets.QFileDialog.Options()
+        file_path, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self, "Save CSV File", "", "CSV Files (*.csv);;All Files (*)", options=options
+        )
+
+        if file_path:
+            try:
+                with open(file_path, mode="w", newline="", encoding="utf-8") as csvfile:
+                    writer = csv.writer(csvfile)
+                    writer.writerow(self.headers)  # Write headers
+                    writer.writerows(self.filtered_data)  # Write filtered data
+                QtWidgets.QMessageBox.information(self, "Success", "Filtered data exported successfully!")
+            except Exception as e:
+                QtWidgets.QMessageBox.warning(self, "Error", f"Failed to export CSV file:\n{e}")
 
 
 if __name__ == "__main__":
