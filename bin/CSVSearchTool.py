@@ -7,7 +7,7 @@ class UnifiedSearchApp(QtWidgets.QWidget):
         super().__init__()
         self.headers = []  # To store column headers dynamically
         self.data = []  # To store CSV data
-        self.search_fields = {}  # To store column-specific search fields dynamically
+        self.search_fields = {}  # To store column-specific dropdown menus dynamically
         self.initUI()
 
     def initUI(self):
@@ -43,7 +43,7 @@ class UnifiedSearchApp(QtWidgets.QWidget):
         general_search_btn.clicked.connect(self.perform_general_search)
         general_search_layout.addWidget(general_search_btn)
 
-        # Column-specific search fields (dynamically added)
+        # Column-specific search fields (editable dropdowns)
         self.column_search_layout = QtWidgets.QFormLayout()
         self.layout.addLayout(self.column_search_layout)
 
@@ -110,12 +110,15 @@ class UnifiedSearchApp(QtWidgets.QWidget):
 
         self.search_fields = {}
 
-        # Dynamically add search fields for each column
-        for header in self.headers:
-            search_field = QtWidgets.QLineEdit(self)
-            search_field.setPlaceholderText(f"Enter search term for {header}...")
-            self.column_search_layout.addRow(header + ":", search_field)
-            self.search_fields[header] = search_field
+        # Dynamically add editable dropdown menus for each column
+        for col_idx, header in enumerate(self.headers):
+            dropdown = QtWidgets.QComboBox(self)
+            dropdown.setEditable(True)  # Make the dropdown editable
+            dropdown.addItem("All")  # Default "All" option
+            unique_values = sorted(set(row[col_idx].strip() for row in self.data[1:] if row[col_idx].strip()))
+            dropdown.addItems(unique_values)
+            self.column_search_layout.addRow(header + ":", dropdown)
+            self.search_fields[header] = dropdown
 
     def perform_general_search(self):
         """Searches across all columns for the given query."""
@@ -127,24 +130,24 @@ class UnifiedSearchApp(QtWidgets.QWidget):
             QtWidgets.QMessageBox.warning(self, "Warning", "Please enter a search term.")
             return
 
-        # Filter results based on exact matches across all columns
         results = [
             row for row in self.data[1:]
-            if any(str(cell).strip().lower() == search_query for cell in row)
+            if any(str(cell).strip().lower() == search_query for cell in row)  # Ensure exact match
         ]
 
         self.display_results(results)
 
     def perform_column_search(self):
-        """Searches specific columns based on input fields."""
+        """Searches specific columns based on dropdown values."""
         if not self.data or len(self.data) <= 1:
             QtWidgets.QMessageBox.warning(self, "Warning", "Please load a CSV file first.")
             return
 
-        # Collect search terms for each column
+        # Collect selected or typed values from dropdowns
         search_terms = {
-            header: field.text().strip().lower()
-            for header, field in self.search_fields.items()
+            header: dropdown.currentText().strip().lower()
+            for header, dropdown in self.search_fields.items()
+            if dropdown.currentText() != "All"
         }
 
         results = []
@@ -154,8 +157,8 @@ class UnifiedSearchApp(QtWidgets.QWidget):
                 column_index = self.headers.index(header)
                 cell_value = str(row[column_index]).strip().lower()
 
-                # Check for exact match and avoid substring matches
-                if term and cell_value != term:
+                # Check for exact match
+                if cell_value != term:
                     match = False
                     break
             if match:
