@@ -1,3 +1,4 @@
 data/
 docs/*.drawio.bkp
-pyinstaller_build/
+build/
+dist/
