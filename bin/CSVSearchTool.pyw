@@ -1,5 +1,9 @@
-from PyQt5 import QtWidgets, QtGui, QtCore
+import sys
 import csv
+from PyQt5 import QtWidgets, QtGui, QtCore
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
+import pandas as pd
 
 
 class UnifiedSearchApp(QtWidgets.QWidget):
@@ -15,52 +19,84 @@ class UnifiedSearchApp(QtWidgets.QWidget):
         # Window setup
         self.setWindowTitle("Unified CSV Search Application")
         self.setGeometry(200, 100, 1000, 600)
-
-        # Main layout§
         self.layout = QtWidgets.QVBoxLayout()
+        
+        #Main window
         self.setLayout(self.layout)
 
-        # File selection
-        file_layout = QtWidgets.QHBoxLayout()
-        self.layout.addLayout(file_layout)
+        # Main layout with splitter
+        self.splitter = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
+        self.layout.addWidget(self.splitter)
 
+        # Left layout: search fields and graph
+        left_layout = QtWidgets.QWidget()
+        left_layout.setLayout(QtWidgets.QVBoxLayout())
+        self.splitter.addWidget(left_layout)
+
+        # File selection
+        top_layout = QtWidgets.QHBoxLayout()
+        left_layout.layout().addLayout(top_layout)
+
+        # File selection (Browse CSV)
         self.file_path_box = QtWidgets.QLineEdit(self)
         self.file_path_box.setPlaceholderText("Select a CSV file...")
-        file_layout.addWidget(self.file_path_box)
+        top_layout.addWidget(self.file_path_box)
 
         browse_btn = QtWidgets.QPushButton("Browse", self)
         browse_btn.clicked.connect(self.open_file_dialog)
-        file_layout.addWidget(browse_btn)
+        top_layout.addWidget(browse_btn)
 
-        # General search
-        general_search_layout = QtWidgets.QHBoxLayout()
-        self.layout.addLayout(general_search_layout)
-
+        # General search bar
         self.general_search_box = QtWidgets.QLineEdit(self)
         self.general_search_box.setPlaceholderText("Enter general search term...")
-        general_search_layout.addWidget(self.general_search_box)
+        top_layout.addWidget(self.general_search_box)
 
+        # Search button
         general_search_btn = QtWidgets.QPushButton("Search All", self)
         general_search_btn.clicked.connect(self.perform_general_search)
-        general_search_layout.addWidget(general_search_btn)
+        top_layout.addWidget(general_search_btn)
 
         # Column-specific search fields (editable dropdowns)
         self.column_search_layout = QtWidgets.QFormLayout()
-        self.layout.addLayout(self.column_search_layout)
+        left_layout.layout().addLayout(self.column_search_layout)
 
         # Specific search button
         specific_search_button = QtWidgets.QPushButton("Search by Column", self)
         specific_search_button.clicked.connect(self.perform_column_search)
-        self.layout.addWidget(specific_search_button)
+        left_layout.layout().addWidget(specific_search_button)
 
         # Export filtered data button
         export_button = QtWidgets.QPushButton("Export Filtered Data", self)
         export_button.clicked.connect(self.export_filtered_data)
-        self.layout.addWidget(export_button)
+        left_layout.layout().addWidget(export_button)
 
         # Table for displaying results
         self.table = QtWidgets.QTableWidget()
         self.layout.addWidget(self.table)
+
+        # Chart controls (renamed and reduced space)
+        chart_controls_layout = QtWidgets.QHBoxLayout()
+        left_layout.layout().addLayout(chart_controls_layout)
+
+        self.chart_label = QtWidgets.QLabel("Select Column for Graph Visualization:")
+        chart_controls_layout.addWidget(self.chart_label)
+
+        self.column_selector = QtWidgets.QComboBox()
+        self.column_selector.currentTextChanged.connect(self.update_graph)
+        chart_controls_layout.addWidget(self.column_selector)
+
+        # Right layout: Graph area
+        right_layout = QtWidgets.QWidget()
+        right_layout.setLayout(QtWidgets.QVBoxLayout())
+        self.splitter.addWidget(right_layout)
+
+        # Chart canvas setup
+        self.chart_canvas = FigureCanvas(Figure(figsize=(6, 4)))
+        right_layout.layout().addWidget(self.chart_canvas)
+        self.ax = self.chart_canvas.figure.add_subplot(111)
+
+        # Set minimum width for graph section
+        self.splitter.setSizes([300, 700])  # Set left section smaller and right section (graph) larger        
 
     def open_file_dialog(self):
         # Open file dialog to select a CSV file
@@ -105,6 +141,7 @@ class UnifiedSearchApp(QtWidgets.QWidget):
 
             # Reset filtered data
             self.filtered_data = self.data[1:]
+            self.populate_column_selector()
             print("CSV Data Loaded Successfully!")
 
         except Exception as e:
@@ -205,6 +242,46 @@ class UnifiedSearchApp(QtWidgets.QWidget):
                 QtWidgets.QMessageBox.information(self, "Success", "Filtered data exported successfully!")
             except Exception as e:
                 QtWidgets.QMessageBox.warning(self, "Error", f"Failed to export CSV file:\n{e}")
+
+    def populate_column_selector(self):
+        if self.headers:
+            self.column_selector.clear()
+            self.column_selector.addItems(self.headers)
+
+    def update_graph(self):
+        """Update the graph based on the selected column."""
+        column = self.column_selector.currentText()
+        if self.data and column:
+            try:
+                # Clear the current graph
+                self.ax.clear()
+
+                # Get the column index
+                col_idx = self.headers.index(column)
+                column_data = [row[col_idx] for row in self.data[1:] if row[col_idx]]  # Exclude empty cells
+
+                # Check if the column is numeric or categorical
+                try:
+                    # Try converting to numeric for histogram
+                    numeric_data = list(map(float, column_data))
+                    self.ax.hist(numeric_data, bins=10, color='skyblue', edgecolor='black')
+                    self.ax.set_title(f"Histogram of {column}")
+                    self.ax.set_xlabel(column)
+                    self.ax.set_ylabel("Frequency")
+                except ValueError:
+                    # Handle categorical data
+                    value_counts = pd.Series(column_data).value_counts()
+                    value_counts.plot(kind='bar', ax=self.ax, color='skyblue', edgecolor='black')
+                    self.ax.set_title(f"Bar Chart of {column}")
+                    self.ax.set_xlabel(column)
+                    self.ax.set_ylabel("Count")
+
+                # Redraw the canvas
+                self.chart_canvas.draw()
+
+            except Exception as e:
+                QtWidgets.QMessageBox.warning(self, "Error", f"Failed to update graph for column '{column}':\n{e}")
+                print(f"Graph update error: {e}")
 
 
 if __name__ == "__main__":
