@@ -2,3 +2,4 @@ data/
 docs/*.drawio.bkp
 build/
 dist/
+assets/

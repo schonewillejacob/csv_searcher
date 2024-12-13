@@ -35,6 +35,7 @@ class UnifiedSearchApp(QtWidgets.QWidget):
         self.initUI()
 
     def initUI(self):
+        # App protperties
         self.setWindowTitle("Unified CSV Search Application")
         self.setGeometry(200, 100, 1000, 600)
         self.layout = QtWidgets.QVBoxLayout()
@@ -66,8 +67,16 @@ class UnifiedSearchApp(QtWidgets.QWidget):
         general_search_btn.clicked.connect(self.perform_general_search)
         top_layout.addWidget(general_search_btn)
 
-        self.column_search_layout = QtWidgets.QFormLayout()
-        left_layout.layout().addLayout(self.column_search_layout)
+        # Scrollable column filtering
+        self.column_search_scroll_title = QtWidgets.QLabel("Column value filter")
+        left_layout.layout().addWidget(self.column_search_scroll_title)
+        self.column_search_container_widget = QtWidgets.QWidget()
+        self.column_search_form_layout = QtWidgets.QFormLayout()
+        self.column_search_container_widget.setLayout(self.column_search_form_layout)
+        self.column_search_scroll_area = QtWidgets.QScrollArea()
+        self.column_search_scroll_area.setWidget(self.column_search_container_widget)
+        self.column_search_scroll_area.setWidgetResizable(True)
+        left_layout.layout().addWidget(self.column_search_scroll_area)
 
         specific_search_button = QtWidgets.QPushButton("Search by Column", self)
         specific_search_button.clicked.connect(self.perform_column_search)
@@ -145,8 +154,8 @@ class UnifiedSearchApp(QtWidgets.QWidget):
                 self.table.setItem(row_num, col_num, QtWidgets.QTableWidgetItem(str(cell_data)))
 
     def update_search_fields(self):
-        for i in reversed(range(self.column_search_layout.count())):
-            self.column_search_layout.itemAt(i).widget().deleteLater()
+        for i in reversed(range(self.column_search_form_layout.count())):
+            self.column_search_form_layout.itemAt(i).widget().deleteLater()
 
         self.search_fields = {}
 
@@ -159,7 +168,7 @@ class UnifiedSearchApp(QtWidgets.QWidget):
             unique_values = sorted(set(str(row[col_idx]) for row in self.filtered_data if row[col_idx] is not None))
             
             dropdown.addItems(unique_values)
-            self.column_search_layout.addRow(header + ":", dropdown)
+            self.column_search_form_layout.addRow(header + ":", dropdown)
             self.search_fields[header] = dropdown
 
 
