@@ -16,7 +16,7 @@ class CSVLoaderThread(QtCore.QThread):
 
     def run(self):
         try:
-            df_iterator = pd.read_csv(self.file_path, chunksize=1000, encoding='utf-8', low_memory=False)
+            df_iterator = pd.read_csv(self.file_path, chunksize=UnifiedSearchApp.MAX_ROWS_IN_TABLE, encoding='utf-8', low_memory=False)
             df = next(df_iterator)  # Read the first chunk
 
             headers = df.columns.tolist()
@@ -26,12 +26,17 @@ class CSVLoaderThread(QtCore.QThread):
             self.error_occurred.emit(str(e))
 
 class UnifiedSearchApp(QtWidgets.QWidget):
+    # Constant for loading limits
+    MAX_ROWS_IN_TABLE = 1_000_000
+    
     def __init__(self):
         super().__init__()
         self.headers = []
         self.data = []
         self.filtered_data = []
         self.search_fields = {}
+        
+
         self.initUI()
 
     def initUI(self):
@@ -110,6 +115,11 @@ class UnifiedSearchApp(QtWidgets.QWidget):
 
         self.splitter.setSizes([300, 700])
 
+        self.loading_label = QtWidgets.QLabel(" ")
+        self.loading_label.setStyleSheet("color: blue;")
+        self.layout.addWidget(self.loading_label)
+        
+
     def open_file_dialog(self):
         options = QtWidgets.QFileDialog.Options()
         file_path, _ = QtWidgets.QFileDialog.getOpenFileName(
@@ -117,10 +127,25 @@ class UnifiedSearchApp(QtWidgets.QWidget):
         )
         if file_path:
             self.file_path_box.setText(file_path)
+            self.loading_label.setText("Loading \"" + str(file_path) + "\", please be patient...")
             self.load_csv_data(file_path)
 
     def load_csv_data(self, file_path):
         self.setEnabled(False)
+        
+        # Error handling - too many rows
+        temp_filestream = None
+        count = 0
+        try:
+            temp_filestream = open(file_path)
+            for _row in temp_filestream:
+                count += 1
+            if count > UnifiedSearchApp.MAX_ROWS_IN_TABLE: 
+                QtWidgets.QMessageBox.warning(self, "Error", "Too large a .csv, failed to load completely\nTotal Row limit is " + str(UnifiedSearchApp.MAX_ROWS_IN_TABLE) + ".")
+        finally:
+            if temp_filestream is not None:
+                temp_filestream.close()
+            del count
 
         self.csv_loader_thread = CSVLoaderThread(file_path)
         self.csv_loader_thread.data_loaded.connect(self.on_csv_loaded)
@@ -136,6 +161,7 @@ class UnifiedSearchApp(QtWidgets.QWidget):
         self.update_search_fields()
         self.populate_column_selector()
         self.update_table(rows)
+        self.loading_label.setText(" ")
         print("CSV Data Loaded Successfully!")
 
     def on_csv_load_error(self, error_message):
@@ -143,8 +169,7 @@ class UnifiedSearchApp(QtWidgets.QWidget):
         print(f"Error loading CSV: {error_message}")
 
     def update_table(self, rows):
-        max_rows_to_display = 500
-        display_rows = rows[:max_rows_to_display]
+        display_rows = rows[:UnifiedSearchApp.MAX_ROWS_IN_TABLE]
 
         self.table.setRowCount(len(display_rows))
         self.table.setColumnCount(len(self.headers))

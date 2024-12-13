@@ -13,9 +13,9 @@ pyinstaller -F %TARGET_SCRIPT%
 echo:
 echo Cleanup of pyinstaller...
 move dist\*.exe .
-rd /s /q build
+
 rd /s /q dist
-del CSVSearchTool.spec /s /q
+
 
 echo:
 timeout 15
