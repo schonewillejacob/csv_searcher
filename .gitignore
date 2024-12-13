@@ -1,5 +1,8 @@
+# unneeded files/dir
 data/
-docs/*.drawio.bkp
-build/
-dist/
 assets/
+docs/*.drawio.bkp
+# pyinstaller freezing temp files
+dist/
+build/
+CSVSearchTool.spec
