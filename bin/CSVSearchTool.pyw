@@ -87,6 +87,7 @@ class UnifiedSearchApp(QtWidgets.QWidget):
         left_layout.layout().addWidget(export_button)
 
         self.table = QtWidgets.QTableWidget()
+        self.table.setSortingEnabled(True)
         self.layout.addWidget(self.table)
 
         chart_controls_layout = QtWidgets.QHBoxLayout()
