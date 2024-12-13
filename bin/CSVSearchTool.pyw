@@ -4,19 +4,27 @@ from PyQt5 import QtWidgets, QtGui, QtCore
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 import pandas as pd
+import chardet
 
 # Worker thread for loading CSV files
 class CSVLoaderThread(QtCore.QThread):
     data_loaded = QtCore.pyqtSignal(list, list)  # Signal to pass data and headers back
     error_occurred = QtCore.pyqtSignal(str)  # Signal to handle errors
 
-    def __init__(self, file_path):
+    def __init__(self, file_path, encoding="utf-8"):
         super().__init__()
         self.file_path = file_path
+        self.encoding = encoding
 
     def run(self):
         try:
-            df_iterator = pd.read_csv(self.file_path, chunksize=UnifiedSearchApp.MAX_ROWS_IN_TABLE, encoding='utf-8', low_memory=False)
+            # Load CSV file in chunks to handle large files
+            df_iterator = pd.read_csv(
+                self.file_path,
+                chunksize=UnifiedSearchApp.MAX_ROWS_IN_TABLE,
+                encoding=self.encoding,
+                low_memory=False
+            )
             df = next(df_iterator)  # Read the first chunk
 
             headers = df.columns.tolist()
@@ -25,11 +33,13 @@ class CSVLoaderThread(QtCore.QThread):
         except Exception as e:
             self.error_occurred.emit(str(e))
 
+# Main application class
 class UnifiedSearchApp(QtWidgets.QWidget):
     # Constant for loading limits
     MAX_ROWS_IN_TABLE = 1_000_000
     
     def __init__(self):
+        """Initialize the UI layout and components"""
         super().__init__()
         self.headers = []
         self.data = []
@@ -40,7 +50,7 @@ class UnifiedSearchApp(QtWidgets.QWidget):
         self.initUI()
 
     def initUI(self):
-        # App protperties
+        # App properties
         self.setWindowTitle("Unified CSV Search Application")
         self.setGeometry(200, 100, 1000, 600)
         self.layout = QtWidgets.QVBoxLayout()
@@ -49,6 +59,7 @@ class UnifiedSearchApp(QtWidgets.QWidget):
         self.splitter = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
         self.layout.addWidget(self.splitter)
 
+        # Top layout for file selection and search
         left_layout = QtWidgets.QWidget()
         left_layout.setLayout(QtWidgets.QVBoxLayout())
         self.splitter.addWidget(left_layout)
@@ -91,10 +102,12 @@ class UnifiedSearchApp(QtWidgets.QWidget):
         export_button.clicked.connect(self.export_filtered_data)
         left_layout.layout().addWidget(export_button)
 
+        # Table to display data
         self.table = QtWidgets.QTableWidget()
         self.table.setSortingEnabled(True)
         self.layout.addWidget(self.table)
 
+        # Chart controls
         chart_controls_layout = QtWidgets.QHBoxLayout()
         left_layout.layout().addLayout(chart_controls_layout)
 
@@ -105,6 +118,7 @@ class UnifiedSearchApp(QtWidgets.QWidget):
         self.column_selector.currentTextChanged.connect(self.update_graph)
         chart_controls_layout.addWidget(self.column_selector)
 
+        # Chart canvas
         right_layout = QtWidgets.QWidget()
         right_layout.setLayout(QtWidgets.QVBoxLayout())
         self.splitter.addWidget(right_layout)
@@ -119,7 +133,6 @@ class UnifiedSearchApp(QtWidgets.QWidget):
         self.loading_label.setStyleSheet("color: blue;")
         self.layout.addWidget(self.loading_label)
         
-
     def open_file_dialog(self):
         options = QtWidgets.QFileDialog.Options()
         file_path, _ = QtWidgets.QFileDialog.getOpenFileName(
@@ -132,28 +145,28 @@ class UnifiedSearchApp(QtWidgets.QWidget):
 
     def load_csv_data(self, file_path):
         self.setEnabled(False)
-        
-        # Error handling - too many rows
-        temp_filestream = None
-        count = 0
+        # Auto-detect encoding using `chardet`
         try:
-            temp_filestream = open(file_path)
-            for _row in temp_filestream:
-                count += 1
-            if count > UnifiedSearchApp.MAX_ROWS_IN_TABLE: 
-                QtWidgets.QMessageBox.warning(self, "Error", "Too large a .csv, failed to load completely\nTotal Row limit is " + str(UnifiedSearchApp.MAX_ROWS_IN_TABLE) + ".")
-        finally:
-            if temp_filestream is not None:
-                temp_filestream.close()
-            del count
+            with open(file_path, "rb") as file:
+                raw_data = file.read(100000)  # Read the first 100 KB for detection
+                detected_encoding = chardet.detect(raw_data)['encoding']
+                if detected_encoding is None:
+                    detected_encoding = "utf-8"  # Default to utf-8 if detection fails
+            print(f"Detected encoding: {detected_encoding}")
+        except Exception as e:
+            detected_encoding = "utf-8"
+            print(f"Error detecting encoding, defaulting to utf-8: {e}")
 
         self.csv_loader_thread = CSVLoaderThread(file_path)
+        self.csv_loader_thread.file_path = file_path
+        self.csv_loader_thread.encoding = detected_encoding  # Pass the detected encoding
         self.csv_loader_thread.data_loaded.connect(self.on_csv_loaded)
         self.csv_loader_thread.error_occurred.connect(self.on_csv_load_error)
         self.csv_loader_thread.finished.connect(lambda: self.setEnabled(True))
         self.csv_loader_thread.start()
 
     def on_csv_loaded(self, headers, rows):
+        """Handle successful CSV data load"""
         self.headers = headers
         self.data = [headers] + rows
         self.filtered_data = rows
@@ -165,12 +178,13 @@ class UnifiedSearchApp(QtWidgets.QWidget):
         print("CSV Data Loaded Successfully!")
 
     def on_csv_load_error(self, error_message):
+        """Handle CSV loading errors"""
         QtWidgets.QMessageBox.warning(self, "Error", f"Failed to load CSV file:\n{error_message}")
         print(f"Error loading CSV: {error_message}")
 
     def update_table(self, rows):
+        """Update the table with new data"""
         display_rows = rows[:UnifiedSearchApp.MAX_ROWS_IN_TABLE]
-
         self.table.setRowCount(len(display_rows))
         self.table.setColumnCount(len(self.headers))
         self.table.setHorizontalHeaderLabels(self.headers)
@@ -180,6 +194,7 @@ class UnifiedSearchApp(QtWidgets.QWidget):
                 self.table.setItem(row_num, col_num, QtWidgets.QTableWidgetItem(str(cell_data)))
 
     def update_search_fields(self):
+        """Update the column filtering options"""
         for i in reversed(range(self.column_search_form_layout.count())):
             self.column_search_form_layout.itemAt(i).widget().deleteLater()
 
@@ -197,8 +212,8 @@ class UnifiedSearchApp(QtWidgets.QWidget):
             self.column_search_form_layout.addRow(header + ":", dropdown)
             self.search_fields[header] = dropdown
 
-
     def perform_general_search(self):
+        """Perform a general search across all columns"""
         search_query = self.general_search_box.text().strip().lower()
         if not self.data or len(self.data) <= 1:
             QtWidgets.QMessageBox.warning(self, "Warning", "Please load a CSV file first.")
@@ -215,7 +230,11 @@ class UnifiedSearchApp(QtWidgets.QWidget):
         self.filtered_data = results
         self.update_table(results)
 
+        # Trigger graph update based on the current column selection
+        self.update_graph()
+
     def perform_column_search(self):
+        """Perform a column-specific search"""
         if not self.data or len(self.data) <= 1:
             QtWidgets.QMessageBox.warning(self, "Warning", "Please load a CSV file first.")
             return
@@ -241,8 +260,12 @@ class UnifiedSearchApp(QtWidgets.QWidget):
 
         self.filtered_data = results
         self.update_table(results)
+    
+        # Trigger graph update based on the current column selection
+        self.update_graph()
 
     def export_filtered_data(self):
+        """Export filtered data to a CSV file"""
         if not self.filtered_data:
             QtWidgets.QMessageBox.warning(self, "Warning", "No filtered data to export.")
             return
@@ -263,6 +286,7 @@ class UnifiedSearchApp(QtWidgets.QWidget):
                 QtWidgets.QMessageBox.warning(self, "Error", f"Failed to export CSV file:\n{e}")
 
     def populate_column_selector(self):
+        """Populate the column selector with categorical columns"""
         if self.headers:
             self.column_selector.clear()
             # Filter headers for categorical columns
@@ -272,8 +296,8 @@ class UnifiedSearchApp(QtWidgets.QWidget):
             ]
             self.column_selector.addItems(categorical_columns)
 
-
     def update_graph(self):
+        """Update the graph visualization based on selected column"""
         column = self.column_selector.currentText()
         
         if self.data and column:
@@ -304,6 +328,10 @@ class UnifiedSearchApp(QtWidgets.QWidget):
                 self.ax.set_title(f"Bar Chart of {column}")
                 self.ax.set_xlabel(column)
                 self.ax.set_ylabel("Count")
+
+                # Make the x-axis labels smaller and rotated for readability
+                self.ax.tick_params(axis='x', labelsize=8)  # Adjust font size
+                self.ax.set_xticklabels(self.ax.get_xticklabels(), rotation=45, ha='right')  # Rotate labels
             except Exception as e:
                 print(f"Error updating graph for column {column}: {e}")
                 self.ax.clear()
@@ -312,8 +340,9 @@ class UnifiedSearchApp(QtWidgets.QWidget):
         else:
             # No valid column selected or no data to visualize
             self.ax.clear()
-            self.ax.set_title("No data to visualize")
+            self.ax.set_title("No categorical data to visualize")
             self.chart_canvas.draw()
+
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
