@@ -4,6 +4,7 @@ from PyQt5 import QtWidgets, QtCore, QtGui
 from PyQt5.QtCore import QAbstractTableModel, Qt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
+import chardet
 
 # Custom Table Model for Pandas DataFrame
 class PandasModel(QAbstractTableModel):
@@ -182,7 +183,16 @@ class UnifiedSearchApp(QtWidgets.QWidget):
 
     def load_csv_data(self, file_path):
         self.setEnabled(False)
-        self.csv_loader_thread = CSVLoaderThread(file_path)
+
+        # Use chardet to detect encoding
+        with open(file_path, "rb") as file:
+            raw_data = file.read(100000)  # Read the first 100 KB of the file
+            detected_encoding = chardet.detect(raw_data)["encoding"]
+            if not detected_encoding:
+                detected_encoding = "utf-8"  # Fallback to utf-8 if detection fails
+        print(f"Detected encoding: {detected_encoding}")
+
+        self.csv_loader_thread = CSVLoaderThread(file_path, encoding=detected_encoding)
         self.csv_loader_thread.data_loaded.connect(self.on_csv_loaded)
         self.csv_loader_thread.error_occurred.connect(self.on_csv_load_error)
         self.csv_loader_thread.finished.connect(lambda: self.setEnabled(True))
