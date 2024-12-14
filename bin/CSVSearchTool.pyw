@@ -305,29 +305,30 @@ class UnifiedSearchApp(QtWidgets.QWidget):
                 if len(unique_values) <= 20:
                     self.column_selector.addItem(header)
                     
-        def export_filtered_data(self):
-            if not self.filtered_data:
-                QtWidgets.QMessageBox.warning(self, "Warning", "No data to export.")
-                return
-        
-            options = QtWidgets.QFileDialog.Options()
-            file_path, _ = QtWidgets.QFileDialog.getSaveFileName(
-                self,
-                "Save Filtered Data",
-                "",
-                "CSV Files (*.csv);;All Files (*)",
-                options=options,
-            )
-        
-            if file_path:
-                try:
-                    # Convert the filtered data into a DataFrame
-                    df = pd.DataFrame(self.filtered_data, columns=self.headers)
-                    # Export the DataFrame to CSV
-                    df.to_csv(file_path, index=False)
-                    QtWidgets.QMessageBox.information(self, "Success", f"Data exported successfully to {file_path}.")
-                except Exception as e:
-                    QtWidgets.QMessageBox.critical(self, "Error", f"Failed to export data:\n{str(e)}")
+    def export_filtered_data(self):
+        if not self.filtered_data:
+            QtWidgets.QMessageBox.warning(self, "Warning", "No data to export.")
+            return
+
+        options = QtWidgets.QFileDialog.Options()
+        file_path, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self,
+            "Save Filtered Data",
+            "",
+            "CSV Files (*.csv);;All Files (*)",
+            options=options,
+        )
+
+        if file_path:
+            try:
+                # Convert the filtered data into a DataFrame
+                df = pd.DataFrame(self.filtered_data, columns=self.headers)
+                # Export the DataFrame to CSV
+                df.to_csv(file_path, index=False)
+                QtWidgets.QMessageBox.information(self, "Success", f"Data exported successfully to {file_path}.")
+            except Exception as e:
+                QtWidgets.QMessageBox.critical(self, "Error", f"Failed to export data:\n{str(e)}")
+                    
 
     def update_graph(self):
         column = self.column_selector.currentText()
