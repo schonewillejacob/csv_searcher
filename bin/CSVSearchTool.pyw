@@ -340,4 +340,5 @@ if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     window = UnifiedSearchApp()
     window.show()
+    window.setWindowIcon(QtGui.QIcon('assets/csv_icon_2.svg'))
     sys.exit(app.exec_())
