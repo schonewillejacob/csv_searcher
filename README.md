@@ -19,5 +19,6 @@ Download and Run '\CSVSearchTool.exe'
 To explore futher, clone this repo.   
 'build.bat': Creates '\CSVSearchTool.exe' w/ pyinstaller.    
 'dependencies.bat': Not compiling? This will download packages using pip:   
-- PyQt5
-- 
+- PyQt5   
+- matplotlib   
+- pandas    
