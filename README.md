@@ -17,7 +17,8 @@ Download and Run '\CSVSearchTool.exe'
 
 
 ### To explore futher, clone this repo.    
-'build.bat': Creates '\CSVSearchTool.exe' w/ pyinstaller.    
+'build.bat': Creates '\CSVSearchTool.exe' w/ pyinstaller.  
+Assets folder: Has some csv files that you can import to the tool to try. 
 'dependencies.bat': Not compiling? This will download packages using pip:   
 - PyQt5   
 - matplotlib   
