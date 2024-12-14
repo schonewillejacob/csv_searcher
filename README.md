@@ -16,7 +16,7 @@ App designed to aid the exploration of \*.csv files
 Download and Run '\CSVSearchTool.exe'   
 
 
-To explore futher, clone this repo.   
+### To explore futher, clone this repo.    
 'build.bat': Creates '\CSVSearchTool.exe' w/ pyinstaller.    
 'dependencies.bat': Not compiling? This will download packages using pip:   
 - PyQt5   
