@@ -12,19 +12,22 @@ class PandasModel(QAbstractTableModel):
         super().__init__()
         self._data = data
 
+    #Returns number of rows in dataframe
     def rowCount(self, parent=None):
         return self._data.shape[0]
-
+    #Returns number of columns in dataframe
     def columnCount(self, parent=None):
         return self._data.shape[1]
 
     def data(self, index, role=Qt.DisplayRole):
+        #Return data for display in the table
         if role == Qt.DisplayRole:
             return str(self._data.iloc[index.row(), index.column()])
         return None
 
     def headerData(self, section, orientation, role=Qt.DisplayRole):
         if role == Qt.DisplayRole:
+            # Provide headers for the table
             if orientation == Qt.Horizontal:
                 return self._data.columns[section]
             if orientation == Qt.Vertical:
@@ -39,6 +42,7 @@ class PandasModel(QAbstractTableModel):
         )
         self.layoutChanged.emit()
 
+# Thread for loading CSV data asynchronously
 class CSVLoaderThread(QtCore.QThread):
     data_loaded = QtCore.pyqtSignal(list, list)  # Signal to emit headers and rows
     error_occurred = QtCore.pyqtSignal(str)  # Signal for errors
@@ -49,6 +53,7 @@ class CSVLoaderThread(QtCore.QThread):
         self.encoding = encoding
 
     def run(self):
+        # Load CSV data and emit signals for success or failure
         try:
             df = pd.read_csv(self.file_path, encoding=self.encoding, low_memory=False)
             headers = df.columns.tolist()
@@ -57,6 +62,7 @@ class CSVLoaderThread(QtCore.QThread):
         except Exception as e:
             self.error_occurred.emit(str(e))
 
+# Main application widget
 class UnifiedSearchApp(QtWidgets.QWidget):
     def __init__(self):
         super().__init__()
@@ -68,12 +74,15 @@ class UnifiedSearchApp(QtWidgets.QWidget):
         self.initUI()
 
     def initUI(self):
+        # Set up the main layout and window properties
         self.setWindowTitle("Unified CSV Search Application")
         self.setGeometry(200, 100, 1200, 800)
 
+        # Main vertical layout
         self.main_layout = QtWidgets.QVBoxLayout()
         self.setLayout(self.main_layout)
 
+        # Splitter to separate sections
         self.splitter = QtWidgets.QSplitter(QtCore.Qt.Vertical)
         self.main_layout.addWidget(self.splitter)
 
@@ -91,10 +100,12 @@ class UnifiedSearchApp(QtWidgets.QWidget):
         top_layout = QtWidgets.QHBoxLayout()
         left_layout.addLayout(top_layout)
 
+        # Input field to display selected file path
         self.file_path_box = QtWidgets.QLineEdit()
         self.file_path_box.setPlaceholderText("Select a CSV file...")
         top_layout.addWidget(self.file_path_box)
 
+        # Browse button to open file dialog
         browse_btn = QtWidgets.QPushButton("Browse")
         browse_btn.clicked.connect(self.open_file_dialog)
         top_layout.addWidget(browse_btn)
@@ -103,10 +114,12 @@ class UnifiedSearchApp(QtWidgets.QWidget):
         self.general_search_box.setPlaceholderText("Enter general search term...")
         top_layout.addWidget(self.general_search_box)
 
+        # General search input and button
         general_search_btn = QtWidgets.QPushButton("Search All")
         general_search_btn.clicked.connect(self.perform_general_search)
         top_layout.addWidget(general_search_btn)
 
+        # Reset filters button
         reset_btn = QtWidgets.QPushButton("Reset Filters")
         reset_btn.clicked.connect(self.reset_filters)
         top_layout.addWidget(reset_btn)
@@ -120,6 +133,7 @@ class UnifiedSearchApp(QtWidgets.QWidget):
         self.column_search_scroll_area.setWidgetResizable(True)
         left_layout.addWidget(self.column_search_scroll_area)
 
+        # Button to apply column-specific search filters
         specific_search_btn = QtWidgets.QPushButton("Search by Column")
         specific_search_btn.clicked.connect(self.perform_column_search)
         left_layout.addWidget(specific_search_btn)
@@ -130,10 +144,12 @@ class UnifiedSearchApp(QtWidgets.QWidget):
         chart_panel.setLayout(chart_layout)
         top_section.addWidget(chart_panel)
 
+        # Chart section title
         chart_title = QtWidgets.QLabel("Chart View")
         chart_title.setStyleSheet("font-size: 16px; font-weight: bold;")
         chart_layout.addWidget(chart_title)
 
+        # Chart controls: column selector
         chart_controls_layout = QtWidgets.QHBoxLayout()
         chart_layout.addLayout(chart_controls_layout)
 
@@ -238,6 +254,7 @@ class UnifiedSearchApp(QtWidgets.QWidget):
             self.column_search_form_layout.addRow(header + ":", dropdown)
             self.search_fields[header] = dropdown
 
+    #Keyword search
     def perform_general_search(self):
         search_query = self.general_search_box.text().strip().lower()
         if not self.data or len(self.data) <= 1:
@@ -256,6 +273,7 @@ class UnifiedSearchApp(QtWidgets.QWidget):
         self.update_table(results)
         self.update_graph()
 
+    #Column search and filter
     def perform_column_search(self):
         if not self.data or len(self.data) <= 1:
             QtWidgets.QMessageBox.warning(self, "Warning", "Please load a CSV file first.")
@@ -304,7 +322,8 @@ class UnifiedSearchApp(QtWidgets.QWidget):
                 unique_values = set(row[self.headers.index(header)] for row in self.filtered_data if row[self.headers.index(header)] is not None)
                 if len(unique_values) <= 20:
                     self.column_selector.addItem(header)
-                    
+
+    #Export filtered csv
     def export_filtered_data(self):
         if not self.filtered_data:
             QtWidgets.QMessageBox.warning(self, "Warning", "No data to export.")
@@ -330,6 +349,7 @@ class UnifiedSearchApp(QtWidgets.QWidget):
                 QtWidgets.QMessageBox.critical(self, "Error", f"Failed to export data:\n{str(e)}")
                     
 
+    #Update graph section
     def update_graph(self):
         column = self.column_selector.currentText()
 
