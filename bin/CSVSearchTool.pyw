@@ -170,7 +170,11 @@ class UnifiedSearchApp(QtWidgets.QWidget):
         self.loading_label = QtWidgets.QLabel(" ")
         self.loading_label.setStyleSheet("color: blue;")
         self.main_layout.addWidget(self.loading_label)
-
+        
+        export_btn = QtWidgets.QPushButton("Export Filtered Data")
+        export_btn.clicked.connect(self.export_filtered_data)
+        top_layout.addWidget(export_btn)
+        
     def open_file_dialog(self):
         options = QtWidgets.QFileDialog.Options()
         file_path, _ = QtWidgets.QFileDialog.getOpenFileName(
@@ -300,6 +304,30 @@ class UnifiedSearchApp(QtWidgets.QWidget):
                 unique_values = set(row[self.headers.index(header)] for row in self.filtered_data if row[self.headers.index(header)] is not None)
                 if len(unique_values) <= 20:
                     self.column_selector.addItem(header)
+                    
+        def export_filtered_data(self):
+            if not self.filtered_data:
+                QtWidgets.QMessageBox.warning(self, "Warning", "No data to export.")
+                return
+        
+            options = QtWidgets.QFileDialog.Options()
+            file_path, _ = QtWidgets.QFileDialog.getSaveFileName(
+                self,
+                "Save Filtered Data",
+                "",
+                "CSV Files (*.csv);;All Files (*)",
+                options=options,
+            )
+        
+            if file_path:
+                try:
+                    # Convert the filtered data into a DataFrame
+                    df = pd.DataFrame(self.filtered_data, columns=self.headers)
+                    # Export the DataFrame to CSV
+                    df.to_csv(file_path, index=False)
+                    QtWidgets.QMessageBox.information(self, "Success", f"Data exported successfully to {file_path}.")
+                except Exception as e:
+                    QtWidgets.QMessageBox.critical(self, "Error", f"Failed to export data:\n{str(e)}")
 
     def update_graph(self):
         column = self.column_selector.currentText()
